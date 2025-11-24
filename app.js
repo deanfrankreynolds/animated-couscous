@@ -346,6 +346,8 @@ class AccessibleRoutePlanner {
 
         const route = data.routes[0];
         console.log('Route object:', route);
+        console.log('Elevation data available:', route.elevation);
+        console.log('Extras:', route.extras);
 
         // OpenRouteService returns encoded geometry, we need to decode it
         let coordinates;
@@ -353,7 +355,6 @@ class AccessibleRoutePlanner {
             if (typeof route.geometry === 'string') {
                 // Geometry is encoded polyline - need to decode
                 console.log('Geometry is encoded, needs decoding');
-                // For now, use a simple fallback
                 coordinates = this.decodePolyline(route.geometry);
             } else if (route.geometry.coordinates) {
                 coordinates = route.geometry.coordinates;
@@ -369,8 +370,16 @@ class AccessibleRoutePlanner {
         // Convert coordinates to Leaflet format [lat, lng]
         const points = coordinates.map(coord => [coord[1], coord[0]]);
 
-        // Extract elevation data (if available)
-        const elevations = coordinates.map(coord => coord[2] || 0);
+        // Get elevation data from route.elevation if available
+        let elevations = [];
+        if (route.elevation && route.elevation.length > 0) {
+            elevations = route.elevation;
+            console.log('Using elevation data from route.elevation:', elevations.length, 'points');
+        } else {
+            // Fallback: use coordinates if they have elevation, or zeros
+            elevations = coordinates.map(coord => coord[2] || 0);
+            console.log('Using elevation from coordinates or zeros');
+        }
 
         // Calculate gradients between consecutive points
         const gradientSegments = [];
@@ -402,13 +411,23 @@ class AccessibleRoutePlanner {
         }
 
         // Extract turn-by-turn instructions
-        const directions = segments.steps.map((step, index) => ({
-            instruction: step.instruction,
-            distance: (step.distance / 1000).toFixed(2) + ' km',
-            duration: Math.ceil(step.duration / 60) + ' min',
-            type: step.type,
-            name: step.name || 'Unnamed road'
-        }));
+        const directions = segments.steps.map((step, index) => {
+            // Format distance - use meters for short distances, km for longer ones
+            let distanceStr;
+            if (step.distance < 1000) {
+                distanceStr = Math.round(step.distance) + ' m';
+            } else {
+                distanceStr = (step.distance / 1000).toFixed(2) + ' km';
+            }
+
+            return {
+                instruction: step.instruction,
+                distance: distanceStr,
+                duration: Math.ceil(step.duration / 60) + ' min',
+                type: step.type,
+                name: step.name || 'Unnamed road'
+            };
+        });
 
         // Calculate total elevation gain
         const totalElevationGain = gradientSegments.reduce((sum, seg) =>
