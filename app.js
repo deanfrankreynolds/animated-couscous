@@ -99,6 +99,11 @@ class AccessibleRoutePlanner {
             this.useCurrentLocation();
         });
 
+        // Example Route button
+        document.getElementById('example-route-btn').addEventListener('click', () => {
+            this.loadExampleRoute();
+        });
+
         // Gradient selector
         document.getElementById('max-gradient').addEventListener('change', (e) => {
             this.maxGradient = parseInt(e.target.value);
@@ -630,6 +635,33 @@ class AccessibleRoutePlanner {
             },
             { enableHighAccuracy: true, timeout: 10000 }
         );
+    }
+
+    loadExampleRoute() {
+        // Load an example route: Central Station → Grey's Monument
+        this.clearAll();
+
+        const btn = document.getElementById('example-route-btn');
+        btn.disabled = true;
+        btn.textContent = '🎯 Loading Example...';
+
+        // Set Central Station as start
+        const centralStation = this.knownLocations['central station'];
+        this.setStartPoint(centralStation[0], centralStation[1]);
+        this.updateInput('start-input', 'Central Station');
+
+        // Set Grey's Monument as end
+        const greysMonument = this.knownLocations['monument'];
+        this.setEndPoint(greysMonument[0], greysMonument[1]);
+        this.updateInput('end-input', 'Grey\'s Monument');
+
+        // Automatically find the route
+        setTimeout(() => {
+            this.findRoute().finally(() => {
+                btn.disabled = false;
+                btn.textContent = '🎯 Try Example Route';
+            });
+        }, 500);
     }
 
     clearAll() {
