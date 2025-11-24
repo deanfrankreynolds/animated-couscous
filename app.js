@@ -300,7 +300,8 @@ class AccessibleRoutePlanner {
                     elevation: true,
                     instructions: true,
                     units: 'km',
-                    extra_info: ['steepness']
+                    extra_info: ['steepness'],
+                    geometry_format: 'geojson'
                 })
             });
 
@@ -320,6 +321,13 @@ class AccessibleRoutePlanner {
 
             const data = await response.json();
 
+            console.log('OpenRouteService response:', data);
+            console.log('Routes array:', data.routes);
+            if (data.routes && data.routes[0]) {
+                console.log('First route:', data.routes[0]);
+                console.log('Geometry:', data.routes[0].geometry);
+            }
+
             // Parse the response and calculate gradient information
             return this.parseRouteData(data);
 
@@ -331,15 +339,39 @@ class AccessibleRoutePlanner {
 
     parseRouteData(data) {
         // Extract route information from OpenRouteService response
+        console.log('parseRouteData called with:', data);
+
+        if (!data.routes || data.routes.length === 0) {
+            throw new Error('No routes found in response');
+        }
+
         const route = data.routes[0];
-        const geometry = route.geometry.coordinates; // [lng, lat, elevation]
+        console.log('Route object:', route);
+
+        // OpenRouteService returns encoded geometry, we need to decode it
+        let coordinates;
+        if (route.geometry) {
+            if (typeof route.geometry === 'string') {
+                // Geometry is encoded polyline - need to decode
+                console.log('Geometry is encoded, needs decoding');
+                // For now, use a simple fallback
+                coordinates = this.decodePolyline(route.geometry);
+            } else if (route.geometry.coordinates) {
+                coordinates = route.geometry.coordinates;
+            } else {
+                throw new Error('Unknown geometry format');
+            }
+        } else {
+            throw new Error('No geometry in route response');
+        }
+
         const segments = route.segments[0];
 
         // Convert coordinates to Leaflet format [lat, lng]
-        const points = geometry.map(coord => [coord[1], coord[0]]);
+        const points = coordinates.map(coord => [coord[1], coord[0]]);
 
-        // Extract elevation data
-        const elevations = geometry.map(coord => coord[2]);
+        // Extract elevation data (if available)
+        const elevations = coordinates.map(coord => coord[2] || 0);
 
         // Calculate gradients between consecutive points
         const gradientSegments = [];
@@ -396,6 +428,39 @@ class AccessibleRoutePlanner {
             directions: directions,
             rawData: route
         };
+    }
+
+    decodePolyline(encoded) {
+        // Decode Google-style polyline encoding
+        // Returns array of [lng, lat] coordinates
+        const points = [];
+        let index = 0, len = encoded.length;
+        let lat = 0, lng = 0;
+
+        while (index < len) {
+            let b, shift = 0, result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+
+            points.push([lng * 1e-5, lat * 1e-5]);
+        }
+
+        return points;
     }
 
     async simulateAccessibleRoute(start, end, maxGradient) {
