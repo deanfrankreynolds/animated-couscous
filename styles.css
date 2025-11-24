@@ -127,6 +127,8 @@ header p {
     background: white;
     border: 2px solid #10b981;
     border-radius: 8px;
+    max-height: 600px;
+    overflow-y: auto;
 }
 
 .route-info h3 {

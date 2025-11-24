@@ -13,6 +13,10 @@ class AccessibleRoutePlanner {
         this.routeLayer = null;
         this.maxGradient = 3;
 
+        // OpenRouteService API key
+        this.apiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjQ3MzZjMmRmMjFjYjRkZTlhYzc5NmQ2N2FkMmY4YTAxIiwiaCI6Im11cm11cjY0In0=';
+        this.apiBaseUrl = 'https://api.openrouteservice.org';
+
         // Predefined accessible locations in Newcastle City Centre
         this.knownLocations = {
             'central station': [54.9689, -1.6174],
@@ -267,20 +271,123 @@ class AccessibleRoutePlanner {
     }
 
     async calculateAccessibleRoute() {
-        // This uses OpenRouteService API for routing with elevation data
-        // Note: In production, you should use your own API key
+        // Use OpenRouteService API for real routing with elevation data
         const [startLat, startLng] = this.startPoint;
         const [endLat, endLng] = this.endPoint;
 
-        // For demonstration, we'll create a simulated route
-        // In production, integrate with a real routing API like OpenRouteService
-        const route = await this.simulateAccessibleRoute(
-            this.startPoint,
-            this.endPoint,
-            this.maxGradient
+        try {
+            // OpenRouteService uses [lng, lat] format (opposite of Leaflet)
+            const coordinates = [
+                [startLng, startLat],
+                [endLng, endLat]
+            ];
+
+            // Call OpenRouteService API with wheelchair profile
+            const response = await fetch(`${this.apiBaseUrl}/v2/directions/wheelchair`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': this.apiKey
+                },
+                body: JSON.stringify({
+                    coordinates: coordinates,
+                    preference: 'recommended',
+                    elevation: true,
+                    instructions: true,
+                    geometry_simplify: false,
+                    units: 'km',
+                    extra_info: ['steepness', 'surface'],
+                    options: {
+                        avoid_features: [],
+                        maximum_incline: this.maxGradient
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('OpenRouteService error:', errorData);
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Parse the response and calculate gradient information
+            return this.parseRouteData(data);
+
+        } catch (error) {
+            console.error('Routing error:', error);
+            throw error;
+        }
+    }
+
+    parseRouteData(data) {
+        // Extract route information from OpenRouteService response
+        const route = data.routes[0];
+        const geometry = route.geometry.coordinates; // [lng, lat, elevation]
+        const segments = route.segments[0];
+
+        // Convert coordinates to Leaflet format [lat, lng]
+        const points = geometry.map(coord => [coord[1], coord[0]]);
+
+        // Extract elevation data
+        const elevations = geometry.map(coord => coord[2]);
+
+        // Calculate gradients between consecutive points
+        const gradientSegments = [];
+        let maxSegmentGradient = 0;
+        let isAccessible = true;
+
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const e1 = elevations[i];
+            const e2 = elevations[i + 1];
+
+            const segmentDistance = this.calculateDistance(p1, p2) * 1000; // meters
+            const elevationChange = e2 - e1;
+            const gradient = segmentDistance > 0 ? Math.abs((elevationChange / segmentDistance) * 100) : 0;
+
+            gradientSegments.push({
+                start: p1,
+                end: p2,
+                gradient: gradient,
+                elevationChange: elevationChange
+            });
+
+            maxSegmentGradient = Math.max(maxSegmentGradient, gradient);
+
+            if (gradient > this.maxGradient) {
+                isAccessible = false;
+            }
+        }
+
+        // Extract turn-by-turn instructions
+        const directions = segments.steps.map((step, index) => ({
+            instruction: step.instruction,
+            distance: (step.distance / 1000).toFixed(2) + ' km',
+            duration: Math.ceil(step.duration / 60) + ' min',
+            type: step.type,
+            name: step.name || 'Unnamed road'
+        }));
+
+        // Calculate total elevation gain
+        const totalElevationGain = gradientSegments.reduce((sum, seg) =>
+            sum + (seg.elevationChange > 0 ? seg.elevationChange : 0), 0
         );
 
-        return route;
+        return {
+            points: points,
+            segments: gradientSegments,
+            distance: route.summary.distance * 1000, // Convert to meters
+            duration: Math.ceil(route.summary.duration / 60), // Convert to minutes
+            maxGradient: maxSegmentGradient,
+            isAccessible: isAccessible,
+            elevationGain: totalElevationGain,
+            estimatedTime: Math.ceil(route.summary.duration / 60),
+            directions: directions,
+            rawData: route
+        };
     }
 
     async simulateAccessibleRoute(start, end, maxGradient) {
@@ -451,6 +558,24 @@ class AccessibleRoutePlanner {
             ? 'This route is accessible within your gradient preference'
             : 'This route has sections exceeding your gradient preference';
 
+        let directionsHTML = '';
+        if (route.directions && route.directions.length > 0) {
+            directionsHTML = `
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e5e7eb;">
+                    <h4 style="margin-bottom: 0.75rem; color: #1f2937;">📍 Turn-by-Turn Directions</h4>
+                    <ol style="margin: 0; padding-left: 1.5rem; line-height: 1.8;">
+                        ${route.directions.map((dir, index) => `
+                            <li style="margin: 0.5rem 0;">
+                                <strong>${dir.instruction}</strong>
+                                ${dir.name !== 'Unnamed road' ? `<br><span style="color: #6b7280; font-size: 0.9rem;">on ${dir.name}</span>` : ''}
+                                <br><span style="color: #6b7280; font-size: 0.85rem;">${dir.distance} · ${dir.duration}</span>
+                            </li>
+                        `).join('')}
+                    </ol>
+                </div>
+            `;
+        }
+
         routeDetailsDiv.innerHTML = `
             <p><strong>${accessibilityIcon} ${accessibilityText}</strong></p>
             <p>📏 <strong>Distance:</strong> ${(route.distance / 1000).toFixed(2)} km (${(route.distance / 1000 * 0.621371).toFixed(2)} miles)</p>
@@ -458,6 +583,7 @@ class AccessibleRoutePlanner {
             <p>📈 <strong>Maximum Gradient:</strong> ${route.maxGradient.toFixed(1)}%</p>
             <p>⛰️ <strong>Total Elevation Gain:</strong> ${route.elevationGain.toFixed(1)} meters</p>
             <p>♿ <strong>Your Max Gradient Setting:</strong> ${this.maxGradient}%</p>
+            ${directionsHTML}
         `;
 
         routeInfoDiv.style.display = 'block';
