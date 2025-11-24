@@ -750,31 +750,53 @@ class AccessibleRoutePlanner {
             ? 'This route is accessible within your gradient preference'
             : 'This route has sections exceeding your gradient preference';
 
-        // Add detailed gradient breakdown
-        let gradientBreakdownHTML = '';
+        // Create summary section
+        const summaryHTML = `
+            <div class="route-summary">
+                <div class="summary-badge ${route.isAccessible ? 'accessible' : 'warning'}">
+                    ${accessibilityIcon} ${route.isAccessible ? 'Accessible' : 'Challenging'}
+                </div>
+                <div class="summary-stats">
+                    <div class="stat">
+                        <div class="stat-label">Distance</div>
+                        <div class="stat-value">${(route.distance / 1000).toFixed(2)} km</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Time</div>
+                        <div class="stat-value">${route.estimatedTime} min</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Max Gradient</div>
+                        <div class="stat-value">${route.maxGradient.toFixed(1)}%</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Elevation</div>
+                        <div class="stat-value">+${route.elevationGain.toFixed(0)}m</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Create gradient overview
+        let gradientOverviewHTML = '';
         if (route.steepnessSegments && route.steepnessSegments.length > 0) {
-            gradientBreakdownHTML = `
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e5e7eb;">
-                    <h4 style="margin-bottom: 0.75rem; color: #1f2937;">📊 Gradient Breakdown</h4>
-                    <p style="margin-bottom: 1rem; color: #6b7280; font-size: 0.9rem;">
-                        Understanding what you'll encounter - distances shown in meters so you know exactly what to expect:
-                    </p>
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            gradientOverviewHTML = `
+                <div class="section">
+                    <h4>⛰️ Gradient Overview</h4>
+                    <div class="gradient-segments">
                         ${route.steepnessSegments.map(seg => {
                             const isAccessible = seg.maxGradient <= this.maxGradient;
-                            const icon = isAccessible ? '✅' : '⚠️';
-                            const borderColor = seg.color;
-
                             return `
-                                <div style="padding: 0.75rem; border-left: 4px solid ${borderColor}; background: ${borderColor}15; border-radius: 4px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                        <strong style="color: #1f2937;">${icon} ${seg.categoryName}</strong>
-                                        <span style="font-weight: 600; color: ${borderColor};">${Math.round(seg.distance)}m</span>
+                                <div class="gradient-card" style="border-left-color: ${seg.color};">
+                                    <div class="gradient-header">
+                                        <span class="gradient-icon">${isAccessible ? '✅' : '⚠️'}</span>
+                                        <span class="gradient-name">${seg.categoryName}</span>
+                                        <span class="gradient-distance">${Math.round(seg.distance)}m</span>
                                     </div>
-                                    <div style="font-size: 0.85rem; color: #6b7280;">
+                                    <div class="gradient-note">
                                         ${isAccessible ?
-                                            `Within your ${this.maxGradient}% preference` :
-                                            `Exceeds your ${this.maxGradient}% preference - may need assistance`
+                                            `✓ Within your ${this.maxGradient}% limit` :
+                                            `⚠ May require assistance`
                                         }
                                     </div>
                                 </div>
@@ -785,32 +807,37 @@ class AccessibleRoutePlanner {
             `;
         }
 
+        // Create turn-by-turn directions with better formatting
         let directionsHTML = '';
         if (route.directions && route.directions.length > 0) {
             directionsHTML = `
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e5e7eb;">
-                    <h4 style="margin-bottom: 0.75rem; color: #1f2937;">📍 Turn-by-Turn Directions</h4>
-                    <ol style="margin: 0; padding-left: 1.5rem; line-height: 1.8;">
-                        ${route.directions.map((dir, index) => `
-                            <li style="margin: 0.5rem 0;">
-                                <strong>${dir.instruction}</strong>
-                                ${dir.name !== 'Unnamed road' ? `<br><span style="color: #6b7280; font-size: 0.9rem;">on ${dir.name}</span>` : ''}
-                                <br><span style="color: #6b7280; font-size: 0.85rem;">${dir.distance} · ${dir.duration}</span>
-                            </li>
-                        `).join('')}
-                    </ol>
+                <div class="section">
+                    <h4>🧭 Step-by-Step Directions</h4>
+                    <div class="directions-list">
+                        ${route.directions.map((dir, index) => {
+                            const stepNumber = index + 1;
+                            return `
+                                <div class="direction-step">
+                                    <div class="step-number">${stepNumber}</div>
+                                    <div class="step-content">
+                                        <div class="step-instruction">${dir.instruction}</div>
+                                        ${dir.name !== 'Unnamed road' ? `<div class="step-street">${dir.name}</div>` : ''}
+                                        <div class="step-meta">
+                                            <span>📏 ${dir.distance}</span>
+                                            <span>⏱️ ${dir.duration}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
                 </div>
             `;
         }
 
         routeDetailsDiv.innerHTML = `
-            <p><strong>${accessibilityIcon} ${accessibilityText}</strong></p>
-            <p>📏 <strong>Distance:</strong> ${(route.distance / 1000).toFixed(2)} km (${(route.distance / 1000 * 0.621371).toFixed(2)} miles)</p>
-            <p>⏱️ <strong>Estimated Time:</strong> ${route.estimatedTime} minutes</p>
-            <p>📈 <strong>Maximum Gradient:</strong> ${route.maxGradient.toFixed(1)}%</p>
-            <p>⛰️ <strong>Total Elevation Gain:</strong> ${route.elevationGain.toFixed(1)} meters</p>
-            <p>♿ <strong>Your Max Gradient Setting:</strong> ${this.maxGradient}%</p>
-            ${gradientBreakdownHTML}
+            ${summaryHTML}
+            ${gradientOverviewHTML}
             ${directionsHTML}
         `;
 

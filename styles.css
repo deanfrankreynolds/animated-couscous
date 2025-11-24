@@ -15,10 +15,27 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    max-width: 1400px;
-    margin: 0 auto;
     background: white;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 400px;
+    overflow-y: auto;
+    background: #f9fafb;
+    border-right: 2px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-map {
+    flex: 1;
+    position: relative;
 }
 
 header {
@@ -39,9 +56,11 @@ header p {
 }
 
 .controls-panel {
-    padding: 1.5rem 2rem;
-    background: #f9fafb;
-    border-bottom: 2px solid #e5e7eb;
+    padding: 1.5rem;
+    background: white;
+    margin: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .input-group {
@@ -156,19 +175,22 @@ header p {
 }
 
 .route-info {
-    margin-top: 1.5rem;
-    padding: 1.25rem;
+    padding: 1.5rem;
     background: white;
-    border: 2px solid #10b981;
+    margin: 0 1rem 1rem 1rem;
     border-radius: 8px;
-    max-height: 600px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    flex: 1;
     overflow-y: auto;
 }
 
 .route-info h3 {
-    color: #059669;
+    color: #1f2937;
     margin-bottom: 1rem;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.75rem;
 }
 
 #route-details {
@@ -192,22 +214,17 @@ header p {
     font-weight: 500;
 }
 
-#map {
-    flex: 1;
-    min-height: 400px;
-    position: relative;
-}
-
 footer {
-    padding: 1.5rem 2rem;
-    background: #f9fafb;
-    border-top: 2px solid #e5e7eb;
+    padding: 1rem 2rem;
+    background: #1f2937;
+    color: #d1d5db;
+    border-top: 2px solid #111827;
 }
 
 .info-section h3 {
-    color: #1f2937;
+    color: #f3f4f6;
     margin-bottom: 0.75rem;
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 .info-section ul {
@@ -219,6 +236,7 @@ footer {
     padding: 0.5rem 0;
     padding-left: 1.5rem;
     position: relative;
+    font-size: 0.9rem;
 }
 
 .info-section ul li:before {
@@ -231,21 +249,33 @@ footer {
 
 .disclaimer {
     margin-top: 1rem;
-    padding: 1rem;
-    background: #fef3c7;
+    padding: 0.75rem;
+    background: #374151;
     border-left: 4px solid #f59e0b;
-    font-size: 0.9rem;
-    color: #92400e;
+    font-size: 0.85rem;
+    color: #d1d5db;
+    border-radius: 4px;
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
-    header h1 {
-        font-size: 1.5rem;
+@media (max-width: 968px) {
+    .main-content {
+        flex-direction: column;
     }
 
-    .controls-panel {
-        padding: 1rem;
+    .sidebar {
+        width: 100%;
+        max-height: 50vh;
+        border-right: none;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .main-map {
+        min-height: 50vh;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
     }
 
     .button-group {
@@ -301,4 +331,175 @@ footer {
     border: 3px solid white;
     border-radius: 50%;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Route Info Styling */
+.route-summary {
+    margin-bottom: 1.5rem;
+}
+
+.summary-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.summary-badge.accessible {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.summary-badge.warning {
+    background: #fed7aa;
+    color: #92400e;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+
+.stat {
+    background: #f9fafb;
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e5e7eb;
+}
+
+.section h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+.gradient-segments {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.gradient-card {
+    background: #f9fafb;
+    border-left: 4px solid #6b7280;
+    border-radius: 6px;
+    padding: 0.875rem;
+}
+
+.gradient-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.gradient-icon {
+    font-size: 1.1rem;
+}
+
+.gradient-name {
+    flex: 1;
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 0.95rem;
+}
+
+.gradient-distance {
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 0.95rem;
+}
+
+.gradient-note {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.directions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.direction-step {
+    display: flex;
+    gap: 0.75rem;
+    background: #f9fafb;
+    padding: 0.875rem;
+    border-radius: 8px;
+    border-left: 3px solid #2563eb;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: #2563eb;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-instruction {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+    font-size: 0.95rem;
+}
+
+.step-street {
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.step-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.step-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+@media (max-width: 480px) {
+    .summary-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
