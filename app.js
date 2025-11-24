@@ -424,12 +424,13 @@ class AccessibleRoutePlanner {
 
         // Extract turn-by-turn instructions
         const directions = segments.steps.map((step, index) => {
-            // Format distance - use meters for short distances, km for longer ones
+            // Format distance - step.distance is already in km, convert to meters
+            const distanceInMeters = step.distance * 1000;
             let distanceStr;
-            if (step.distance < 1000) {
-                distanceStr = Math.round(step.distance) + ' m';
+            if (distanceInMeters < 1000) {
+                distanceStr = Math.round(distanceInMeters) + ' m';
             } else {
-                distanceStr = (step.distance / 1000).toFixed(2) + ' km';
+                distanceStr = (distanceInMeters / 1000).toFixed(2) + ' km';
             }
 
             return {
@@ -441,18 +442,37 @@ class AccessibleRoutePlanner {
             };
         });
 
-        // Calculate total elevation gain
-        const totalElevationGain = gradientSegments.reduce((sum, seg) =>
+        // Use actual elevation data from summary if available
+        const totalElevationGain = route.summary.ascent || gradientSegments.reduce((sum, seg) =>
             sum + (seg.elevationChange > 0 ? seg.elevationChange : 0), 0
         );
+
+        // Calculate max gradient from steepness data
+        // OpenRouteService steepness categories: 0=flat(0-3%), 1=gentle(3-6%), 2=moderate(6-10%), 3=steep(10-15%), 4=very steep(>15%)
+        let calculatedMaxGradient = maxSegmentGradient;
+
+        if (route.extras && route.extras.steepness && route.extras.steepness.values) {
+            const steepnessCategories = route.extras.steepness.values;
+            const maxCategory = Math.max(...steepnessCategories.map(seg => seg[2]));
+
+            // Map category to gradient percentage (use upper bound of each range)
+            const categoryToGradient = [3, 6, 10, 15, 20];
+            if (maxCategory >= 0 && maxCategory < categoryToGradient.length) {
+                calculatedMaxGradient = categoryToGradient[maxCategory];
+                console.log(`Steepness category ${maxCategory} = max ${calculatedMaxGradient}% gradient`);
+            }
+        }
+
+        // Check accessibility based on calculated gradient
+        const routeIsAccessible = calculatedMaxGradient <= this.maxGradient;
 
         return {
             points: points,
             segments: gradientSegments,
             distance: route.summary.distance * 1000, // Convert to meters
             duration: Math.ceil(route.summary.duration / 60), // Convert to minutes
-            maxGradient: maxSegmentGradient,
-            isAccessible: isAccessible,
+            maxGradient: calculatedMaxGradient,
+            isAccessible: routeIsAccessible,
             elevationGain: totalElevationGain,
             estimatedTime: Math.ceil(route.summary.duration / 60),
             directions: directions,
