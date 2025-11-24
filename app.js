@@ -300,8 +300,7 @@ class AccessibleRoutePlanner {
                     elevation: true,
                     instructions: true,
                     units: 'km',
-                    extra_info: ['steepness'],
-                    geometry_format: 'geojson'
+                    extra_info: ['steepness']
                 })
             });
 
