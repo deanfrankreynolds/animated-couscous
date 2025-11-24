@@ -349,6 +349,13 @@ class AccessibleRoutePlanner {
         console.log('Elevation data available:', route.elevation);
         console.log('Extras:', route.extras);
 
+        if (route.extras && route.extras.steepness) {
+            console.log('Steepness values:', route.extras.steepness.values);
+            console.log('Steepness summary:', route.extras.steepness.summary);
+        }
+
+        console.log('Summary:', route.summary);
+
         // OpenRouteService returns encoded geometry, we need to decode it
         let coordinates;
         if (route.geometry) {
@@ -366,6 +373,11 @@ class AccessibleRoutePlanner {
         }
 
         const segments = route.segments[0];
+        console.log('Segments:', segments);
+        console.log('Steps:', segments.steps);
+        if (segments.steps.length > 0) {
+            console.log('First step:', segments.steps[0]);
+        }
 
         // Convert coordinates to Leaflet format [lat, lng]
         const points = coordinates.map(coord => [coord[1], coord[0]]);
