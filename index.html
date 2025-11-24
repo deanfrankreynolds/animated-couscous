@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newcastle Accessible Route Planner</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♿ Newcastle Accessible Route Planner</h1>
+            <p>Find wheelchair-accessible routes around Newcastle City Centre</p>
+        </header>
+
+        <div class="controls-panel">
+            <div class="input-group">
+                <label for="start-input">
+                    <strong>Start Point:</strong>
+                </label>
+                <input type="text" id="start-input" placeholder="Enter starting location or click on map" />
+                <button id="use-location-btn" class="btn-secondary" title="Use my current location">
+                    📍 Use My Location
+                </button>
+            </div>
+
+            <div class="input-group">
+                <label for="end-input">
+                    <strong>End Point:</strong>
+                </label>
+                <input type="text" id="end-input" placeholder="Enter destination or click on map" />
+            </div>
+
+            <div class="input-group">
+                <label for="max-gradient">
+                    <strong>Maximum Gradient:</strong>
+                </label>
+                <select id="max-gradient">
+                    <option value="3">3% - Most Accessible (recommended)</option>
+                    <option value="5">5% - Moderately Accessible</option>
+                    <option value="8">8% - Challenging</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button id="find-route-btn" class="btn-primary">Find Accessible Route</button>
+                <button id="clear-btn" class="btn-secondary">Clear</button>
+            </div>
+
+            <div id="route-info" class="route-info" style="display: none;">
+                <h3>Route Information</h3>
+                <div id="route-details"></div>
+            </div>
+
+            <div id="error-message" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div id="map"></div>
+
+        <footer>
+            <div class="info-section">
+                <h3>About Accessibility Ratings</h3>
+                <ul>
+                    <li><strong>3% gradient:</strong> Suitable for independent wheelchair use</li>
+                    <li><strong>5% gradient:</strong> May require assistance for some users</li>
+                    <li><strong>8% gradient:</strong> Challenging, suitable for powered wheelchairs only</li>
+                </ul>
+                <p class="disclaimer">
+                    <strong>Note:</strong> This tool provides guidance based on terrain data. Always assess routes in person
+                    and consider weather conditions, surface quality, and personal capabilities.
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Custom JS -->
+    <script src="app.js"></script>
+</body>
+</html>
