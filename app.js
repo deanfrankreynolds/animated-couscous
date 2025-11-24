@@ -485,12 +485,16 @@ class AccessibleRoutePlanner {
     }
 
     processSteepnessSegments(steepnessValues, points) {
-        // Convert steepness segments to useful data with distances        // steepnessValues format: [[startIndex, endIndex, category], ...]
+        // Convert steepness segments to useful data with distances
+        // steepnessValues format: [[startIndex, endIndex, category], ...]
+        console.log('Processing steepness segments:', steepnessValues);
+        console.log('Total points:', points.length);
+
         const categoryNames = ['Flat (0-3%)', 'Gentle (3-6%)', 'Moderate (6-10%)', 'Steep (10-15%)', 'Very Steep (>15%)'];
         const categoryGradients = [3, 6, 10, 15, 20];
         const categoryColors = ['#10b981', '#84cc16', '#f59e0b', '#ef4444', '#991b1b'];
 
-        return steepnessValues.map(segment => {
+        const processed = steepnessValues.map(segment => {
             const [startIdx, endIdx, category] = segment;
 
             // Calculate distance for this segment
@@ -499,7 +503,7 @@ class AccessibleRoutePlanner {
                 segmentDistance += this.calculateDistance(points[i], points[i + 1]) * 1000; // in meters
             }
 
-            return {
+            const result = {
                 startIndex: startIdx,
                 endIndex: endIdx,
                 category: category,
@@ -509,7 +513,13 @@ class AccessibleRoutePlanner {
                 distance: segmentDistance,
                 points: points.slice(startIdx, endIdx + 1)
             };
+
+            console.log('Processed segment:', result);
+            return result;
         });
+
+        console.log('All processed segments:', processed);
+        return processed;
     }
 
     decodePolyline(encoded) {
@@ -656,6 +666,10 @@ class AccessibleRoutePlanner {
     }
 
     displayRoute(route) {
+        console.log('displayRoute called with route:', route);
+        console.log('Route has steepnessSegments:', route.steepnessSegments);
+        console.log('Number of points in route:', route.points.length);
+
         // Remove existing route layer
         if (this.routeLayer) {
             this.map.removeLayer(this.routeLayer);
@@ -666,37 +680,42 @@ class AccessibleRoutePlanner {
 
         // Draw color-coded segments if steepness data is available
         if (route.steepnessSegments && route.steepnessSegments.length > 0) {
-            route.steepnessSegments.forEach(segment => {
+            console.log(`Drawing ${route.steepnessSegments.length} colored segments`);
+            route.steepnessSegments.forEach((segment, idx) => {
+                console.log(`Segment ${idx}:`, segment.categoryName, segment.color, segment.points.length, 'points');
                 const segmentLine = L.polyline(segment.points, {
                     color: segment.color,
-                    weight: 6,
-                    opacity: 0.8,
+                    weight: 8,
+                    opacity: 0.9,
                     lineJoin: 'round'
                 }).addTo(this.routeLayer);
 
                 // Add tooltip showing gradient info
                 segmentLine.bindTooltip(
-                    `${segment.categoryName}<br>${Math.round(segment.distance)}m`,
-                    { sticky: true }
+                    `<strong>${segment.categoryName}</strong><br>${Math.round(segment.distance)}m`,
+                    { sticky: true, className: 'gradient-tooltip' }
                 );
             });
         } else {
+            console.log('No steepness segments, drawing single-color route');
             // Fallback to single-color route
             const routeColor = route.isAccessible ? '#10b981' : '#f59e0b';
             L.polyline(route.points, {
                 color: routeColor,
-                weight: 6,
-                opacity: 0.7,
+                weight: 8,
+                opacity: 0.9,
                 lineJoin: 'round'
             }).addTo(this.routeLayer);
         }
 
-        // Add gradient indicators along the route
-        this.addGradientIndicators(route);
-
-        // Fit map to show entire route
+        // Fit map to show entire route with closer zoom
         const bounds = L.latLngBounds(route.points);
-        this.map.fitBounds(bounds, { padding: [50, 50] });
+        this.map.fitBounds(bounds, {
+            padding: [30, 30],
+            maxZoom: 16  // Closer zoom level
+        });
+
+        console.log('Route displayed, map bounds set');
     }
 
     addGradientIndicators(route) {
