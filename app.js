@@ -466,6 +466,9 @@ class AccessibleRoutePlanner {
         // Check accessibility based on calculated gradient
         const routeIsAccessible = calculatedMaxGradient <= this.maxGradient;
 
+        // Process steepness segments for detailed gradient breakdown
+        const steepnessSegments = this.processSteepnessSegments(route.extras?.steepness?.values || [], points);
+
         return {
             points: points,
             segments: gradientSegments,
@@ -476,8 +479,37 @@ class AccessibleRoutePlanner {
             elevationGain: totalElevationGain,
             estimatedTime: Math.ceil(route.summary.duration / 60),
             directions: directions,
+            steepnessSegments: steepnessSegments,
             rawData: route
         };
+    }
+
+    processSteepnessSegments(steepnessValues, points) {
+        // Convert steepness segments to useful data with distances        // steepnessValues format: [[startIndex, endIndex, category], ...]
+        const categoryNames = ['Flat (0-3%)', 'Gentle (3-6%)', 'Moderate (6-10%)', 'Steep (10-15%)', 'Very Steep (>15%)'];
+        const categoryGradients = [3, 6, 10, 15, 20];
+        const categoryColors = ['#10b981', '#84cc16', '#f59e0b', '#ef4444', '#991b1b'];
+
+        return steepnessValues.map(segment => {
+            const [startIdx, endIdx, category] = segment;
+
+            // Calculate distance for this segment
+            let segmentDistance = 0;
+            for (let i = startIdx; i < endIdx && i < points.length - 1; i++) {
+                segmentDistance += this.calculateDistance(points[i], points[i + 1]) * 1000; // in meters
+            }
+
+            return {
+                startIndex: startIdx,
+                endIndex: endIdx,
+                category: category,
+                categoryName: categoryNames[category] || 'Unknown',
+                maxGradient: categoryGradients[category] || 0,
+                color: categoryColors[category] || '#6b7280',
+                distance: segmentDistance,
+                points: points.slice(startIdx, endIdx + 1)
+            };
+        });
     }
 
     decodePolyline(encoded) {
@@ -629,17 +661,35 @@ class AccessibleRoutePlanner {
             this.map.removeLayer(this.routeLayer);
         }
 
-        // Determine route color based on accessibility
-        const routeColor = route.isAccessible ? '#10b981' : '#f59e0b';
-        const routeWeight = 6;
+        // Create a layer group to hold all route segments
+        this.routeLayer = L.layerGroup().addTo(this.map);
 
-        // Draw route on map
-        this.routeLayer = L.polyline(route.points, {
-            color: routeColor,
-            weight: routeWeight,
-            opacity: 0.7,
-            lineJoin: 'round'
-        }).addTo(this.map);
+        // Draw color-coded segments if steepness data is available
+        if (route.steepnessSegments && route.steepnessSegments.length > 0) {
+            route.steepnessSegments.forEach(segment => {
+                const segmentLine = L.polyline(segment.points, {
+                    color: segment.color,
+                    weight: 6,
+                    opacity: 0.8,
+                    lineJoin: 'round'
+                }).addTo(this.routeLayer);
+
+                // Add tooltip showing gradient info
+                segmentLine.bindTooltip(
+                    `${segment.categoryName}<br>${Math.round(segment.distance)}m`,
+                    { sticky: true }
+                );
+            });
+        } else {
+            // Fallback to single-color route
+            const routeColor = route.isAccessible ? '#10b981' : '#f59e0b';
+            L.polyline(route.points, {
+                color: routeColor,
+                weight: 6,
+                opacity: 0.7,
+                lineJoin: 'round'
+            }).addTo(this.routeLayer);
+        }
 
         // Add gradient indicators along the route
         this.addGradientIndicators(route);
@@ -681,6 +731,41 @@ class AccessibleRoutePlanner {
             ? 'This route is accessible within your gradient preference'
             : 'This route has sections exceeding your gradient preference';
 
+        // Add detailed gradient breakdown
+        let gradientBreakdownHTML = '';
+        if (route.steepnessSegments && route.steepnessSegments.length > 0) {
+            gradientBreakdownHTML = `
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #e5e7eb;">
+                    <h4 style="margin-bottom: 0.75rem; color: #1f2937;">📊 Gradient Breakdown</h4>
+                    <p style="margin-bottom: 1rem; color: #6b7280; font-size: 0.9rem;">
+                        Understanding what you'll encounter - distances shown in meters so you know exactly what to expect:
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        ${route.steepnessSegments.map(seg => {
+                            const isAccessible = seg.maxGradient <= this.maxGradient;
+                            const icon = isAccessible ? '✅' : '⚠️';
+                            const borderColor = seg.color;
+
+                            return `
+                                <div style="padding: 0.75rem; border-left: 4px solid ${borderColor}; background: ${borderColor}15; border-radius: 4px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                        <strong style="color: #1f2937;">${icon} ${seg.categoryName}</strong>
+                                        <span style="font-weight: 600; color: ${borderColor};">${Math.round(seg.distance)}m</span>
+                                    </div>
+                                    <div style="font-size: 0.85rem; color: #6b7280;">
+                                        ${isAccessible ?
+                                            `Within your ${this.maxGradient}% preference` :
+                                            `Exceeds your ${this.maxGradient}% preference - may need assistance`
+                                        }
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         let directionsHTML = '';
         if (route.directions && route.directions.length > 0) {
             directionsHTML = `
@@ -706,6 +791,7 @@ class AccessibleRoutePlanner {
             <p>📈 <strong>Maximum Gradient:</strong> ${route.maxGradient.toFixed(1)}%</p>
             <p>⛰️ <strong>Total Elevation Gain:</strong> ${route.elevationGain.toFixed(1)} meters</p>
             <p>♿ <strong>Your Max Gradient Setting:</strong> ${this.maxGradient}%</p>
+            ${gradientBreakdownHTML}
             ${directionsHTML}
         `;
 
