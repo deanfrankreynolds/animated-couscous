@@ -299,20 +299,23 @@ class AccessibleRoutePlanner {
                     preference: 'recommended',
                     elevation: true,
                     instructions: true,
-                    geometry_simplify: false,
                     units: 'km',
-                    extra_info: ['steepness', 'surface'],
-                    options: {
-                        avoid_features: [],
-                        maximum_incline: this.maxGradient
-                    }
+                    extra_info: ['steepness']
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                console.error('OpenRouteService error:', errorData);
-                throw new Error(`API error: ${response.status}`);
+                console.error('OpenRouteService error details:', errorData);
+                console.error('Request was:', {
+                    coordinates: coordinates,
+                    preference: 'recommended',
+                    elevation: true,
+                    instructions: true,
+                    units: 'km',
+                    extra_info: ['steepness']
+                });
+                throw new Error(`API error: ${response.status} - ${JSON.stringify(errorData)}`);
             }
 
             const data = await response.json();
